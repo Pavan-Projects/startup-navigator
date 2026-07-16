@@ -885,11 +885,11 @@ function ContactPage({ notify }: { notify: (message: string) => void }) {
           <p><Compass size={16} /> Built for founders, from idea to growth.</p>
         </div>
       </div>
-      <form className="panel" onSubmit={(event) => { event.preventDefault(); (event.target as HTMLFormElement).reset(); notify("Message received. Thanks for reaching out!"); }}>
+      <form className="panel contact-form" onSubmit={(event) => { event.preventDefault(); (event.target as HTMLFormElement).reset(); notify("Message received. Thanks for reaching out!"); }}>
         <label>Name<input required placeholder="Your name" /></label>
         <label>Email<input required type="email" placeholder="you@example.com" /></label>
         <label>Message<textarea required rows={5} placeholder="What should Startup Navigator cover next?" /></label>
-        <button className="primary" type="submit"><Mail size={18} /> Send message</button>
+        <button className="primary contact-submit" type="submit"><Mail size={18} /> Send message</button>
       </form>
     </section>
   );

@@ -1312,6 +1312,18 @@ button.topic-card {
   margin-top: 18px;
 }
 
+.contact-form {
+  padding: 28px;
+  gap: 18px;
+}
+
+.contact-submit {
+  margin-top: 8px;
+  justify-self: start;
+  padding: 0 28px;
+  min-height: 50px;
+}
+
 .contact-list p {
   display: flex;
   align-items: center;
