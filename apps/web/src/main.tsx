@@ -130,6 +130,71 @@ function useStoredState<T>(key: string, initial: T) {
 
 const categoryLabel = (id: TopicCategory) => categories.find((item) => item.id === id)?.label ?? id;
 
+const inlineMarkdown = (text: string) => {
+  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  return parts.map((part, index) =>
+    part.startsWith("**") && part.endsWith("**") ? <strong key={`${part}-${index}`}>{part.slice(2, -2)}</strong> : part
+  );
+};
+
+const cleanMarkdownLine = (line: string) =>
+  line
+    .replace(/^#{1,6}\s*/, "")
+    .replace(/^\*\s+/, "")
+    .replace(/^- \[ \]\s*/, "")
+    .replace(/^- \[x\]\s*/i, "")
+    .replace(/^-\s*/, "")
+    .trim();
+
+const renderAnswerBlock = (block: string, index: number) => {
+  const trimmed = block.trim();
+  if (!trimmed) return null;
+
+  if (/^---+$/.test(trimmed)) return <hr key={index} />;
+
+  if (/^#{2,6}\s+/.test(trimmed)) {
+    return <h3 key={index}>{inlineMarkdown(cleanMarkdownLine(trimmed))}</h3>;
+  }
+
+  const lines = trimmed.split("\n").map((line) => line.trim()).filter(Boolean);
+  if (lines.length > 1 && lines.every((line) => /^(\*|-)\s+/.test(line))) {
+    return (
+      <ul key={index}>
+        {lines.map((line) => (
+          <li key={line}>{inlineMarkdown(cleanMarkdownLine(line))}</li>
+        ))}
+      </ul>
+    );
+  }
+
+  if (lines.length > 1 && lines.every((line) => /^\d+\.\s+/.test(line))) {
+    return (
+      <ol key={index}>
+        {lines.map((line) => (
+          <li key={line}>{inlineMarkdown(line.replace(/^\d+\.\s+/, ""))}</li>
+        ))}
+      </ol>
+    );
+  }
+
+  if (lines.length > 1 && lines.some((line) => /^(\*|-|\d+\.)\s+/.test(line))) {
+    return (
+      <div className="answer-group" key={index}>
+        {lines.map((line) => {
+          if (/^#{2,6}\s+/.test(line)) return <h3 key={line}>{inlineMarkdown(cleanMarkdownLine(line))}</h3>;
+          if (/^(\*|-)\s+/.test(line)) return <p className="answer-bullet" key={line}>{inlineMarkdown(cleanMarkdownLine(line))}</p>;
+          if (/^\d+\.\s+/.test(line)) return <p className="answer-step" key={line}>{inlineMarkdown(line)}</p>;
+          return <p key={line}>{inlineMarkdown(line)}</p>;
+        })}
+      </div>
+    );
+  }
+
+  return <p key={index}>{inlineMarkdown(cleanMarkdownLine(trimmed))}</p>;
+};
+
+const renderAnswer = (answer: string) => answer.split(/\n\s*\n/).map(renderAnswerBlock);
+
 function retrieve(query: string, articles: Article[]) {
   const terms = query.toLowerCase().split(/\W+/).filter((term) => term.length > 2);
   return articles
@@ -426,8 +491,8 @@ function AISearchPage({ articles, auth, searches, setSearches, notify }: { artic
         {result && (
           <article className="answer">
             <h2>Answer</h2>
-            {result.answer.split("\n\n").map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
-            <h3>Sources</h3>
+            {renderAnswer(result.answer)}
+            <h3>Knowledge Sources</h3>
             <div className="source-grid">
               {result.sources.map((source) => (
                 <div className="source" key={source.id}>

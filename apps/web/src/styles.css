@@ -459,6 +459,54 @@ input:focus {
   color: var(--navy);
 }
 
+.answer h3 {
+  margin-top: 22px;
+  margin-bottom: 8px;
+}
+
+.answer p {
+  margin: 10px 0;
+}
+
+.answer ul,
+.answer ol {
+  margin: 10px 0 14px;
+  padding-left: 24px;
+}
+
+.answer li {
+  margin: 8px 0;
+}
+
+.answer hr {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 22px 0;
+}
+
+.answer-group {
+  display: grid;
+  gap: 6px;
+}
+
+.answer-bullet {
+  position: relative;
+  padding-left: 20px;
+}
+
+.answer-bullet::before {
+  position: absolute;
+  left: 0;
+  content: "•";
+  color: var(--gold);
+  font-weight: 900;
+}
+
+.answer-step {
+  font-weight: 650;
+  color: var(--navy);
+}
+
 .source span {
   color: var(--gold);
   font-size: 0.78rem;
