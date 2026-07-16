@@ -50,17 +50,43 @@ const toArticle = (article: {
   updatedAt: article.updatedAt.toISOString()
 });
 
-const fallbackAnswer = (query: string, sources: Article[]) => {
+const fallbackAnswer = (_query: string, sources: Article[]) => {
   const primary = sources[0];
   const sourceList = sources.map((source) => `- ${source.title}`).join("\n");
 
   return [
-    `Based on the Startup Navigator knowledge base, start with: ${primary.summary}`,
-    primary.content,
-    "Practical next steps: identify the decision you need to make, collect the required documents or metrics, then use the related resources and admin-curated guides before acting.",
-    `Sources consulted:\n${sourceList}`
+    "## Answer",
+    `${primary.summary} ${primary.content}`,
+    "## What to do next",
+    [
+      "1. Pin down the exact decision you need to make right now.",
+      "2. Collect the documents, numbers, or approvals that decision requires.",
+      "3. Review the related Startup Navigator guides and curated resources.",
+      "4. Confirm any legal, tax, or finance step with a qualified professional in your jurisdiction."
+    ].join("\n"),
+    "## Sources used",
+    sourceList
   ].join("\n\n");
 };
+
+const SYSTEM_INSTRUCTION = `You are Startup Navigator, a warm, practical startup advisor for founders.
+
+Rules:
+- Ground your answer in the provided knowledge-base sources. Prefer their guidance over generic advice.
+- Be specific, structured, and immediately actionable — a founder should be able to act today.
+- Never invent exact legal, tax, or compliance rules for a jurisdiction unless the sources include them. When a decision is legal/tax/finance sensitive, add a one-line note to verify with a qualified professional.
+- Keep a confident, encouraging, plain-English tone. No fluff, no filler.
+
+Always format your reply in clean Markdown using exactly these sections:
+
+## Answer
+A tight 2-4 sentence direct answer to the question.
+
+## What to do next
+A numbered checklist of 3-6 concrete next steps.
+
+## Sources used
+A short bullet list of the source titles that informed the answer.`;
 
 const geminiPrompt = (query: string, sources: Article[]) => {
   const context = sources
@@ -74,65 +100,65 @@ Tags: ${source.tags.join(", ")}`
     )
     .join("\n\n");
 
-  return `You are Startup Navigator, a practical startup advisor for entrepreneurs.
-
-Answer the user's question using the provided knowledge-base sources first. Be specific, structured, and actionable. If the source material is incomplete, say what should be verified with a qualified legal, tax, finance, or local compliance professional. Do not invent exact legal/tax rules for a jurisdiction unless the context includes them.
-
-User question:
+  return `Founder's question:
 ${query}
 
 Knowledge-base sources:
-${context}
-
-Return:
-1. A direct answer.
-2. A short checklist of next steps.
-3. Mention which source titles informed the answer.`;
+${context}`;
 };
 
 const generateWithGemini = async (query: string, sources: Article[]) => {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return null;
 
-  const model = process.env.GEMINI_MODEL ?? "gemini-3.5-flash";
-  const response = await fetch("https://generativelanguage.googleapis.com/v1beta/interactions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-goog-api-key": apiKey
-    },
-    body: JSON.stringify({
-      model,
-      store: false,
-      system_instruction:
-        "You are Startup Navigator. Give founder-friendly startup guidance grounded in provided knowledge-base context. Be concise, practical, and cite source titles.",
-      input: geminiPrompt(query, sources),
-      generation_config: {
-        temperature: 0.4,
-        thinking_level: "low"
-      }
-    })
-  });
+  const model = process.env.GEMINI_MODEL ?? "gemini-2.5-flash";
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 
-  if (!response.ok) {
-    const errorBody = await response.text();
-    console.warn(`Gemini request failed: ${response.status} ${errorBody}`);
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": apiKey
+      },
+      body: JSON.stringify({
+        system_instruction: {
+          parts: [{ text: SYSTEM_INSTRUCTION }]
+        },
+        contents: [
+          {
+            role: "user",
+            parts: [{ text: geminiPrompt(query, sources) }]
+          }
+        ],
+        generationConfig: {
+          temperature: 0.4,
+          maxOutputTokens: 1024,
+          topP: 0.9
+        }
+      })
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      console.warn(`Gemini request failed: ${response.status} ${errorBody}`);
+      return null;
+    }
+
+    const data = (await response.json()) as {
+      candidates?: { content?: { parts?: { text?: string }[] } }[];
+    };
+
+    const text = data.candidates?.[0]?.content?.parts
+      ?.map((part) => part.text ?? "")
+      .join("")
+      .trim();
+
+    return text && text.length > 0 ? text : null;
+  } catch (error) {
+    console.warn("Gemini request threw an error:", error);
     return null;
   }
-
-  const data = (await response.json()) as {
-    output_text?: string;
-    steps?: { type?: string; content?: { type?: string; text?: string }[] }[];
-  };
-  const stepText = data.steps
-    ?.filter((step) => step.type === "model_output")
-    .flatMap((step) => step.content ?? [])
-    .filter((content) => content.type === "text")
-    .map((content) => content.text)
-    .filter(Boolean)
-    .join("\n\n");
-
-  return data.output_text?.trim() || stepText?.trim() || null;
 };
 
 export const retrieveArticles = async (query: string, limit = 3): Promise<Article[]> => {

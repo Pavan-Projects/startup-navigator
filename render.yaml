@@ -3,12 +3,25 @@ services:
     name: startup-navigator-api
     env: node
     plan: free
+    # Turbo builds shared + db (runs `prisma generate`) + api in dependency order.
     buildCommand: pnpm install --no-frozen-lockfile && pnpm build --filter @startup-navigator/api
     startCommand: pnpm --filter @startup-navigator/api start
+    healthCheckPath: /health
     envVars:
       - key: NODE_ENV
         value: production
       - key: JWT_SECRET
         generateValue: true
+      # Comma-separated list of allowed frontend origins (set to your Vercel URL).
       - key: CLIENT_URL
         sync: false
+      # Supabase Postgres connection strings.
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+      # Gemini AI (free tier). If omitted, the API uses the RAG-lite fallback.
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash
