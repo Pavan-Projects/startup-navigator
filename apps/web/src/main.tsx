@@ -379,7 +379,7 @@ function AISearchPage({ articles, auth, searches, setSearches, notify }: { artic
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(auth?.token ? { Authorization: `Bearer ${auth.token}` } : {})
+          ...(auth?.token && auth.token !== "demo-token" ? { Authorization: `Bearer ${auth.token}` } : {})
         },
         body: JSON.stringify({ query })
       });

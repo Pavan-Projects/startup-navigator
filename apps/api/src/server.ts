@@ -106,10 +106,14 @@ const auth = (required = true) =>
     try {
       const payload = jwt.verify(header.slice(7), jwtSecret) as { sub: string; role: Role };
       const user = await prisma.user.findUnique({ where: { id: payload.sub } });
-      if (!user) return res.status(401).json({ message: "Session user no longer exists." });
+      if (!user) {
+        if (!required) return next();
+        return res.status(401).json({ message: "Session user no longer exists." });
+      }
       req.user = toUser(user);
       return next();
     } catch {
+      if (!required) return next();
       return res.status(401).json({ message: "Invalid or expired session." });
     }
   });
