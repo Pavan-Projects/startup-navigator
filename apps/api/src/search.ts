@@ -13,6 +13,26 @@ const tokenize = (value: string) =>
     .split(/\s+/)
     .filter((word) => word.length > 2 && !stopWords.has(word));
 
+const expandTerms = (terms: string[]) => {
+  const expanded = new Set(terms);
+  const queryText = terms.join(" ");
+  const add = (words: string[]) => words.forEach((word) => expanded.add(word));
+
+  if (/(client|clients|customer|customers|lead|leads|sale|sales|acquire|acquisition|outreach)/.test(queryText)) {
+    add(["marketing", "gtm", "go-to-market", "channels", "seo", "content", "outreach", "sales", "leads", "customers", "clients", "conversion", "retention", "acquisition"]);
+  }
+
+  if (/(fund|funding|raise|investor|capital|angel|vc)/.test(queryText)) {
+    add(["funding", "fundraising", "capital", "investor", "traction", "metrics", "model", "cap"]);
+  }
+
+  if (/(register|registration|company|incorporate|entity|legal structure)/.test(queryText)) {
+    add(["registration", "incorporation", "entity", "company", "shares", "founders"]);
+  }
+
+  return [...expanded];
+};
+
 const toArticle = (article: {
   id: string;
   title: string;
@@ -117,11 +137,20 @@ const generateWithGemini = async (query: string, sources: Article[]) => {
 
 export const retrieveArticles = async (query: string, limit = 3): Promise<Article[]> => {
   const dbArticles = await prisma.article.findMany({ where: { published: true }, orderBy: { updatedAt: "desc" } });
-  const terms = tokenize(query);
+  const terms = expandTerms(tokenize(query));
   const scored = dbArticles
     .map((article) => {
-      const haystack = tokenize(`${article.title} ${article.category} ${article.summary} ${article.content} ${article.tags.join(" ")}`);
-      const score = terms.reduce((total, term) => total + haystack.filter((word) => word.includes(term) || term.includes(word)).length, 0);
+      const titleTerms = tokenize(article.title);
+      const summaryTerms = tokenize(article.summary);
+      const bodyTerms = tokenize(`${article.category} ${article.content}`);
+      const tagTerms = tokenize(article.tags.join(" "));
+      const score = terms.reduce((total, term) => {
+        const titleScore = titleTerms.filter((word) => word.includes(term) || term.includes(word)).length * 5;
+        const summaryScore = summaryTerms.filter((word) => word.includes(term) || term.includes(word)).length * 3;
+        const tagScore = tagTerms.filter((word) => word.includes(term) || term.includes(word)).length * 4;
+        const bodyScore = bodyTerms.filter((word) => word.includes(term) || term.includes(word)).length;
+        return total + titleScore + summaryScore + tagScore + bodyScore;
+      }, 0);
       return { article, score };
     })
     .sort((a, b) => b.score - a.score);

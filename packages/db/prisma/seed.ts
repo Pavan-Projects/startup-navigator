@@ -47,6 +47,16 @@ const articles = [
     published: true
   },
   {
+    id: "art_first_clients",
+    title: "Getting Your First Clients With a Lean Acquisition System",
+    category: "marketing",
+    summary: "A practical client-acquisition playbook for early startups: ICP, offer, outreach, proof, and repeatable channels.",
+    content:
+      "To get your first clients, start with a narrow ideal customer profile and a painful problem you can solve now. Build a simple offer with a clear outcome, then test it through founder-led sales before scaling marketing. Use warm intros, LinkedIn outreach, founder communities, niche directories, content that answers buyer questions, and direct email to book discovery calls. Keep the first landing page simple: problem, promise, proof, pricing or call-to-action, and a way to schedule a conversation. Track outreach sent, replies, calls booked, close rate, acquisition cost, activation, retention, and customer objections. Turn every client conversation into better positioning, case studies, testimonials, onboarding checklists, and referral asks. Do not buy paid ads heavily until messaging and conversion are proven organically.",
+    tags: ["clients", "customers", "sales", "lead generation", "outreach", "acquisition", "founder-led sales", "gtm"],
+    published: true
+  },
+  {
     id: "art_ai_tools",
     title: "AI Tools Founders Can Use Without Overcomplicating Operations",
     category: "ai-tools",
