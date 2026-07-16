@@ -147,6 +147,10 @@ function useStoredState<T>(key: string, initial: T) {
 
 const categoryLabel = (id: TopicCategory) => categories.find((item) => item.id === id)?.label ?? id;
 
+// When a topic card on Home is clicked, remember which category to pre-select
+// on the Explore page. Module-level keeps this out of deep prop threading.
+let pendingExploreCategory: string = "all";
+
 const categoryTheme: Record<TopicCategory, string> = {
   registration: "#2e7bc4",
   funding: "#1d9e75",
@@ -312,7 +316,7 @@ function App() {
 
       <main>
         {page === "home" && <HomePage navigate={navigate} demoArticles={demoArticles} demoResources={demoResources} />}
-        {page === "explore" && <ExplorePage demoArticles={demoArticles} />}
+        {page === "explore" && <ExplorePage demoArticles={demoArticles} navigate={navigate} />}
         {page === "ai" && (
           <AISearchPage
             auth={auth}
@@ -322,7 +326,7 @@ function App() {
             notify={notify}
           />
         )}
-        {page === "resources" && <ResourcesPage demoResources={demoResources} />}
+        {page === "resources" && <ResourcesPage demoResources={demoResources} navigate={navigate} />}
         {page === "about" && <AboutPage />}
         {page === "contact" && <ContactPage notify={notify} />}
         {page === "login" && <LoginPage users={users} setUsers={setUsers} setAuth={setAuth} navigate={navigate} notify={notify} />}
@@ -488,7 +492,14 @@ function HomePage({
         </div>
         <div className="topic-grid">
           {categories.map((category) => (
-            <button className="topic-card" key={category.id} onClick={() => navigate("explore")}>
+            <button
+              className="topic-card"
+              key={category.id}
+              onClick={() => {
+                pendingExploreCategory = category.id;
+                navigate("explore");
+              }}
+            >
               <div className="topic-icon" style={{ background: `${categoryTheme[category.id]}18`, color: categoryTheme[category.id] }}>
                 <Compass size={18} />
               </div>
@@ -525,9 +536,13 @@ function Metric({ icon, label, value }: { icon: React.ReactNode; label: string; 
   );
 }
 
-function ExplorePage({ demoArticles }: { demoArticles: Article[] }) {
+function ExplorePage({ demoArticles, navigate }: { demoArticles: Article[]; navigate: (page: Page) => void }) {
   const { articles, loading, error } = useArticles(demoArticles);
-  const [category, setCategory] = useState<string>("all");
+  const [category, setCategory] = useState<string>(() => {
+    const initial = pendingExploreCategory;
+    pendingExploreCategory = "all";
+    return initial;
+  });
   const [query, setQuery] = useState("");
 
   const filtered = articles.filter((article) => {
@@ -538,16 +553,19 @@ function ExplorePage({ demoArticles }: { demoArticles: Article[] }) {
     return matchesCategory && matchesQuery;
   });
 
+  const activeLabel = category === "all" ? "all topics" : categoryLabel(category as TopicCategory);
+
   return (
     <section className="page section">
       <div className="section-heading">
         <h1>Explore Topics</h1>
-        <p>Browse practical startup guides by operating area.</p>
+        <p>Browse {articles.length} practical startup guides across {categories.length} operating areas.</p>
       </div>
       <div className="explore-controls">
         <div className="search-inline">
           <Search size={18} />
-          <input placeholder="Search guides..." value={query} onChange={(event) => setQuery(event.target.value)} />
+          <input placeholder="Search guides by title, topic, or tag..." value={query} onChange={(event) => setQuery(event.target.value)} />
+          {query && <button className="clear-search" onClick={() => setQuery("")} aria-label="Clear search"><X size={16} /></button>}
         </div>
       </div>
       <Segmented value={category} onChange={setCategory} />
@@ -557,17 +575,25 @@ function ExplorePage({ demoArticles }: { demoArticles: Article[] }) {
           {Array.from({ length: 3 }).map((_, index) => <div className="card-skeleton" key={index} />)}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="empty">No guides match your filters yet. Try another topic or search term.</div>
+        <EmptyState
+          icon={<BookOpen size={40} />}
+          title="No guides match your filters"
+          body={`We don't have a guide for "${query || activeLabel}" yet — but the AI can still help.`}
+          action={{ label: "Ask AI Search instead", onClick: () => navigate("ai") }}
+        />
       ) : (
-        <div className="article-list">
-          {filtered.map((article) => <ArticleCard key={article.id} article={article} />)}
-        </div>
+        <>
+          <p className="result-count">{filtered.length} guide{filtered.length === 1 ? "" : "s"} in {activeLabel}</p>
+          <div className="article-list">
+            {filtered.map((article) => <ArticleCard key={article.id} article={article} navigate={navigate} />)}
+          </div>
+        </>
       )}
     </section>
   );
 }
 
-function ArticleCard({ article }: { article: Article }) {
+function ArticleCard({ article, navigate }: { article: Article; navigate?: (page: Page) => void }) {
   return (
     <article className="article-card">
       <span className="pill" style={{ background: `${categoryTheme[article.category]}18`, color: categoryTheme[article.category] }}>
@@ -583,8 +609,34 @@ function ArticleCard({ article }: { article: Article }) {
             {article.tags.map((tag) => <span className="tag" key={tag}>#{tag}</span>)}
           </div>
         )}
+        {navigate && (
+          <button className="text-button ask-link" onClick={() => navigate("ai")}>
+            <BrainCircuit size={15} /> Ask AI about this topic
+          </button>
+        )}
       </details>
     </article>
+  );
+}
+
+function EmptyState({
+  icon,
+  title,
+  body,
+  action
+}: {
+  icon: React.ReactNode;
+  title: string;
+  body: string;
+  action?: { label: string; onClick: () => void };
+}) {
+  return (
+    <div className="empty-block">
+      <span className="empty-icon">{icon}</span>
+      <h3>{title}</h3>
+      <p>{body}</p>
+      {action && <button className="primary" onClick={action.onClick}>{action.label} <ArrowRight size={16} /></button>}
+    </div>
   );
 }
 
@@ -745,7 +797,7 @@ function AISearchPage({
   );
 }
 
-function ResourcesPage({ demoResources }: { demoResources: Resource[] }) {
+function ResourcesPage({ demoResources, navigate }: { demoResources: Resource[]; navigate: (page: Page) => void }) {
   const { resources, loading, error } = useResources(demoResources);
   const [category, setCategory] = useState("all");
   const filtered = resources.filter((item) => category === "all" || item.category === category);
@@ -760,7 +812,12 @@ function ResourcesPage({ demoResources }: { demoResources: Resource[] }) {
           {Array.from({ length: 3 }).map((_, index) => <div className="card-skeleton" key={index} />)}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="empty">No resources in this category yet.</div>
+        <EmptyState
+          icon={<BriefcaseBusiness size={40} />}
+          title="No resources in this category yet"
+          body="Try another category, or explore our in-depth guides instead."
+          action={{ label: "Browse guides", onClick: () => navigate("explore") }}
+        />
       ) : (
         <div className="resource-grid">
           {filtered.map((resource) => (
@@ -780,26 +837,30 @@ function ResourcesPage({ demoResources }: { demoResources: Resource[] }) {
 
 function AboutPage() {
   return (
-    <section className="page prose">
-      <span className="eyebrow"><Sparkles size={16} /> About</span>
-      <h1>About Startup Navigator</h1>
-      <p>
-        Startup Navigator helps founders move from scattered advice to structured execution. It combines curated
-        articles, practical resources, saved search history, and an AI-guided retrieval flow so early teams can make
-        confident decisions faster.
-      </p>
-      <p>
-        The architecture keeps AI optional and resilient: questions are answered by retrieving the most relevant
-        knowledge-base guides and passing them to Gemini for a grounded, cited answer. If no AI key is configured — or
-        the model is unreachable — the same retrieval produces a keyword-based RAG-lite answer, so the product never
-        breaks for the user.
-      </p>
+    <section className="page about-page">
+      <div className="about-intro">
+        <span className="eyebrow"><Sparkles size={16} /> About</span>
+        <h1>Guidance that takes founders from idea to growth</h1>
+        <p>
+          Startup Navigator turns scattered startup advice into structured execution. It pairs a curated
+          knowledge base with grounded AI answers, so early teams can make confident decisions faster —
+          across registration, funding, compliance, hiring, marketing, taxation, and growth.
+        </p>
+      </div>
+
+      <div className="about-stats">
+        <div><strong>10</strong><span>Startup topics</span></div>
+        <div><strong>RAG</strong><span>Grounded AI search</span></div>
+        <div><strong>100%</strong><span>Cited sources</span></div>
+        <div><strong>Free</strong><span>Open to every founder</span></div>
+      </div>
+
       <div className="about-grid">
         {[
-          { icon: <BookOpen size={20} />, title: "Curated knowledge", body: "Founder-tested guides across 10 core startup topics." },
-          { icon: <BrainCircuit size={20} />, title: "Grounded AI", body: "Answers cite the exact sources they were built from." },
-          { icon: <Shield size={20} />, title: "Resilient by design", body: "Graceful fallback keeps search working with no AI key." },
-          { icon: <BarChart3 size={20} />, title: "Admin dashboard", body: "Manage content and watch usage stats in one place." }
+          { icon: <BookOpen size={20} />, title: "Curated knowledge", body: "Founder-tested guides across 10 core startup topics, kept practical and current." },
+          { icon: <BrainCircuit size={20} />, title: "Grounded AI", body: "Every answer is built from and cites the exact knowledge-base sources it used." },
+          { icon: <Shield size={20} />, title: "Resilient by design", body: "A keyword RAG-lite fallback keeps search working even with no AI key configured." },
+          { icon: <BarChart3 size={20} />, title: "Admin dashboard", body: "Manage articles and resources, and watch real usage stats in one place." }
         ].map((item) => (
           <div className="about-card" key={item.title}>
             <span className="topic-icon">{item.icon}</span>
@@ -943,7 +1004,12 @@ function HistoryPage({ auth, demoSearches, navigate }: { auth: AuthState; demoSe
       {loading ? (
         <div className="article-list">{Array.from({ length: 3 }).map((_, i) => <div className="card-skeleton" key={i} />)}</div>
       ) : searches.length === 0 ? (
-        <div className="empty">No saved searches yet. Ask your first question in AI Search.</div>
+        <EmptyState
+          icon={<Search size={40} />}
+          title="No saved searches yet"
+          body="Your AI search history will appear here. Ask your first startup question to get started."
+          action={{ label: "Go to AI Search", onClick: () => navigate("ai") }}
+        />
       ) : (
         <div className="article-list">
           {searches.map((search) => (
