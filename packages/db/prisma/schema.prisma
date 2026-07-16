@@ -1,0 +1,68 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+model User {
+  id            String          @id @default(uuid())
+  name          String
+  email         String          @unique
+  passwordHash  String
+  role          Role            @default(USER)
+  createdAt     DateTime        @default(now())
+  searches      SearchHistory[]
+
+  @@map("users")
+}
+
+model Article {
+  id          String   @id @default(uuid())
+  title       String
+  category    String
+  summary     String
+  content     String
+  tags        String[] @default([])
+  published   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([category])
+  @@index([published])
+  @@map("articles")
+}
+
+model Resource {
+  id          String   @id @default(uuid())
+  title       String
+  category    String
+  url         String
+  description String
+  createdAt   DateTime @default(now())
+
+  @@index([category])
+  @@map("resources")
+}
+
+model SearchHistory {
+  id        String   @id @default(uuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  query     String
+  answer    String
+  sources   Json     @default("[]")
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("search_history")
+}

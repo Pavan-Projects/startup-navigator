@@ -65,6 +65,7 @@ JWT_SECRET=change-this-in-production
 CLIENT_URL=http://localhost:5173
 OPENAI_API_KEY=
 GEMINI_API_KEY=
+GEMINI_MODEL=gemini-3.5-flash
 CLAUDE_API_KEY=
 ```
 
@@ -74,7 +75,7 @@ Create `apps/web/.env`:
 VITE_API_URL=http://localhost:4000
 ```
 
-The frontend includes a local demo data adapter so the app remains usable even before a backend is deployed.
+The frontend includes a local demo data adapter so the app remains usable even before a backend is deployed. The API supports Gemini-powered answers when `GEMINI_API_KEY` is set; otherwise it uses the built-in RAG-lite fallback.
 
 ## AI Tools Used
 
