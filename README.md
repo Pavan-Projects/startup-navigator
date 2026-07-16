@@ -10,9 +10,12 @@ analytics dashboard.
 
 ## Live Deployment
 
-- **Live app (Vercel):** `TBD — paste after deploy`
-- **API (Render):** `TBD — paste after deploy`
+- **Live app (Vercel):** https://startup-navigator-three.vercel.app
+- **API (Render):** https://startup-navigator-api.onrender.com
 - **GitHub:** https://github.com/Pavan-Projects/startup-navigator
+
+> The API runs on Render's free tier and sleeps after ~15 min of inactivity, so
+> the first request after idle can take ~30–50s to wake. The UI shows loading states.
 
 ### Login credentials
 
