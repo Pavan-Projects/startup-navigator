@@ -34,6 +34,7 @@ type AuthState = { user: User; token: string } | null;
 
 const now = () => new Date().toISOString();
 const uid = (prefix: string) => `${prefix}_${Math.random().toString(36).slice(2, 9)}`;
+const apiUrl = (((import.meta as ImportMeta & { env?: { VITE_API_URL?: string } }).env?.VITE_API_URL ?? "") as string).replace(/\/$/, "");
 
 const seedArticles: Article[] = [
   {
@@ -347,36 +348,66 @@ function AISearchPage({ articles, auth, searches, setSearches, notify }: { artic
   const [query, setQuery] = useState("How should I prepare before raising angel funding?");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<SearchRecord | null>(null);
+  const [error, setError] = useState("");
+  const [answerMode, setAnswerMode] = useState<"api" | "local" | null>(null);
 
-  const ask = () => {
-    if (query.trim().length < 3) return;
-    setLoading(true);
-    window.setTimeout(() => {
-      const sources = retrieve(query, articles);
-      const answer = [
-        `Based on the Startup Navigator knowledge base, your best starting point is ${sources[0].title}.`,
+  const localAnswer = () => {
+    const sources = retrieve(query, articles);
+    return {
+      id: uid("search"),
+      userId: auth?.user.id,
+      query,
+      answer: [
+        `Based on the local demo knowledge base, your best starting point is ${sources[0].title}.`,
         sources[0].content,
         "Suggested next step: turn this into a checklist, assign an owner, and confirm any legal or tax decision with a qualified professional in your jurisdiction."
-      ].join("\n\n");
-      const record: SearchRecord = {
-        id: uid("search"),
-        userId: auth?.user.id,
-        query,
-        answer,
-        sources: sources.map(({ id, title, category, summary }) => ({ id, title, category, summary })),
-        createdAt: now()
-      };
+      ].join("\n\n"),
+      sources: sources.map(({ id, title, category, summary }) => ({ id, title, category, summary })),
+      createdAt: now()
+    } satisfies SearchRecord;
+  };
+
+  const ask = async () => {
+    if (query.trim().length < 3) return;
+    setLoading(true);
+    setError("");
+    setAnswerMode(null);
+
+    try {
+      if (!apiUrl) throw new Error("VITE_API_URL is not configured.");
+      const response = await fetch(`${apiUrl}/api/search`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(auth?.token ? { Authorization: `Bearer ${auth.token}` } : {})
+        },
+        body: JSON.stringify({ query })
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({ message: "AI search request failed." }));
+        throw new Error(body.message ?? "AI search request failed.");
+      }
+      const data = (await response.json()) as { search: SearchRecord };
+      setResult(data.search);
+      setSearches([data.search, ...searches]);
+      setAnswerMode("api");
+      notify("Gemini AI answer returned from the backend.");
+    } catch (caught) {
+      const record = localAnswer();
       setResult(record);
       setSearches([record, ...searches]);
+      setAnswerMode("local");
+      setError(caught instanceof Error ? caught.message : "Backend unavailable; showing local fallback.");
+      notify("Backend unavailable, showing local fallback.");
+    } finally {
       setLoading(false);
-      notify("AI search completed with cited sources.");
-    }, 700);
+    }
   };
 
   return (
     <section className="page search-page">
       <div className="search-shell">
-        <span className="eyebrow"><BrainCircuit size={16} /> RAG-lite knowledge search</span>
+        <span className="eyebrow"><BrainCircuit size={16} /> Gemini + knowledge-base search</span>
         <h1>Ask a startup question</h1>
         <p>Get a grounded answer from the stored Startup Navigator knowledge base, with source guides attached.</p>
         <div className="search-box">
@@ -387,6 +418,11 @@ function AISearchPage({ articles, auth, searches, setSearches, notify }: { artic
           </button>
         </div>
         {loading && <div className="skeleton">Retrieving relevant guides and composing a grounded answer...</div>}
+        {answerMode && (
+          <div className={answerMode === "api" ? "mode-banner success" : "mode-banner warning"}>
+            {answerMode === "api" ? "Live backend response: Supabase retrieval + Gemini generation." : `Local fallback response. ${error}`}
+          </div>
+        )}
         {result && (
           <article className="answer">
             <h2>Answer</h2>

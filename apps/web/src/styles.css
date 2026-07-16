@@ -430,6 +430,25 @@ input:focus {
   font-weight: 750;
 }
 
+.mode-banner {
+  margin: 12px 0;
+  padding: 12px 14px;
+  border-radius: 8px;
+  font-weight: 750;
+}
+
+.mode-banner.success {
+  background: rgba(29, 158, 117, 0.12);
+  color: #0e684d;
+  border: 1px solid rgba(29, 158, 117, 0.24);
+}
+
+.mode-banner.warning {
+  background: rgba(232, 163, 61, 0.14);
+  color: #7b4d07;
+  border: 1px solid rgba(232, 163, 61, 0.28);
+}
+
 .answer {
   padding: 24px;
   line-height: 1.7;

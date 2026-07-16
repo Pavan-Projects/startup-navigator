@@ -1,4 +1,4 @@
-import "dotenv/config";
+import { config } from "dotenv";
 import bcrypt from "bcryptjs";
 import cors from "cors";
 import express, { type NextFunction, type Request, type Response } from "express";
@@ -8,6 +8,8 @@ import { z } from "zod";
 import { prisma } from "@startup-navigator/db";
 import type { Article, Resource, Role, SearchRecord, TopicCategory, User } from "@startup-navigator/shared";
 import { answerQuestion } from "./search.js";
+
+config({ path: new URL("../.env", import.meta.url) });
 
 declare global {
   namespace Express {

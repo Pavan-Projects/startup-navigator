@@ -1,5 +1,8 @@
+import { config } from "dotenv";
 import { prisma } from "@startup-navigator/db";
 import type { Article, SearchRecord, User } from "@startup-navigator/shared";
+
+config({ path: new URL("../.env", import.meta.url) });
 
 const stopWords = new Set(["the", "is", "a", "an", "and", "or", "to", "of", "in", "for", "how", "do", "i", "my", "with"]);
 
