@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: startup-navigator-api
+    env: node
+    plan: free
+    buildCommand: pnpm install --no-frozen-lockfile && pnpm build --filter @startup-navigator/api
+    startCommand: pnpm --filter @startup-navigator/api start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CLIENT_URL
+        sync: false
